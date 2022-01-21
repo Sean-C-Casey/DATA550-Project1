@@ -1,0 +1,96 @@
+---
+title: "Mini Project 1"
+author: 'Justine Filion and Sean Casey'
+date: "January 28 2022"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r eval=TRUE, echo=FALSE, include=FALSE}
+#install.packages("dplyr")
+library(dplyr)
+
+#install.packages("knitr")
+library(knitr)
+
+#install.packages("devtools")
+library(devtools)
+
+#install.packages("DT")
+library(DT)
+
+#install.packages("xtable")
+library(xtable)
+
+library(tidyverse)
+
+# install.packages('caret')
+library(caret)
+
+```
+
+# Step 1 : Describe the Dataset
+
+The data used in the following analysis was provided to us by the Department of Information Management from Chung Hua University and the Department of Civil Engineering from Tamkang University which are both located in Taiwan. It was donated as of January 26th 2016 but refers to data collected from April to September 2005. The purpose of this dataset is to provide insight on what explanatory variables are correlated with the default of a payment?? (or predicting the probability of default). It contains 23 explanantory variables, all of which are integers, as well as a response variable which takes a value of 1 if there was default and 0 if not. This dataset was made available to us via the UCI Machine Learning Repository which can be accessed through this link : [link](https://archive.ics.uci.edu/ml/machine-learning-databases/00350/). 
+
+# Step 2 : Load the Dataset
+
+```{r}
+df <- read_excel('defaultofcreditcardclients.xls', skip = 0)
+```
+
+# Step 3 : Explore the Dataset
+
+```{r}
+str(df)
+summary(df)
+
+table(df[,2])
+
+sapply(3:5, function(x) table(df[,x])) # Gender, Education, Marital Status 
+# Why is there 0, 5 and 6s for Education if not supposed to be from 1 to 4 --> put them in 4 = others ?
+# Why is there 0 for Marital status if supposed to be from 1 to 3 --> put them in 3 = others ?
+# For X6-X11 (Pay_0 to Pay_6) there are -2 and 0s, but not legend for that so what do they represent..
+# Is the response variable an indicator for one month..at least one month ..?
+
+ggplot(data =df, aes(AGE)) + geom_bar()
+ggplot()
+
+test <- pivot_longer(df, !c(1:6, 13:25), names_to = 'PAST_PMT', values_to = 'VAL_PAST_PMT') %>% pivot_longer(!c(1:6, 13:21), names_to = 'BILL_AMT', values_to = 'VAL_BILL_AMT') %>% pivot_longer(!c(1:6, 13:17), names_to = 'AMT_PREV_PMT', values_to = 'VAL_AMT_PREV_PMT')
+
+test2 <- pivot_longer(df, !c(1:6, 13:25), names_to = 'PAST_PMT', values_to = 'VAL_PAST_PMT')
+
+ggplot(data = test, aes(x = VAL_PAST_PMT)) + geom_bar() + facet_wrap(~PAST_PMT) 
+
+# Relationship between amount of credit given and 
+# We could make a new column that would be the balance of the account for a specific month
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+?pivot_longer
+
+
+
+
+
+
+
+
+
+
+
+
+
