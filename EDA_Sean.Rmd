@@ -70,8 +70,11 @@ For the `Education` variable, the data description does not mention what 0, 5 an
 
 
 ```{r}
+# Move everything not in HighSchool, Undergrad, or GradSchool to Other category
 df[df$EDUCATION %in% c(0, 5, 6), "EDUCATION"] <- 4
 
+# Count number of times defaulted on monthly paymnt, and number of times offered
+# revolving credit within the 6-month observation period
 for (i in 1:nrow(df)){
   default_count <- 0
   revolving_credit_count <- 0
@@ -86,8 +89,8 @@ for (i in 1:nrow(df)){
   df[i, 'REVOLVING_CREDIT'] <- revolving_credit_count
 }
 
-df$AGE <- cut(df$AGE, breaks = c(20, 30, 40, 50, 60, 70, 80, 90), include.lowest = TRUE)
-
+# Discretize age by making bins (20s, 30s, etc.)
+df$AGE_BINNED <- cut(df$AGE, breaks = c(20, 30, 40, 50, 60, 70, 80, 90), include.lowest = TRUE)
 ```
 
 
@@ -115,6 +118,9 @@ ggplot(df) +
   labs(x = "Payment Default Occurences", y = "Count") +
   theme_minimal()
 ```
+For this visualization, we opted for a simple histogram because all we wanted to 
+accomplish here was to show the distribution of the number of missed payments 
+within the 6-month observation period.
 
 ```{r}
 # aggregate(df$QTY_DEFAULT, by=list(df$EDUCATION), FUN=mean)
@@ -133,10 +139,108 @@ ggplot(default_by_education) +
   labs(x = "Education", y = "Mean default Count") +
   theme_minimal()
 ```
+For this visualization, we chose to use a bar chart so we could easily see which
+Education group had the highest average number of defaults, and so we could
+quickly compare the different groups to each other.
+
+```{r}
+ggplot(df) +
+  aes(x = `EDUCATION`) +
+  geom_histogram(binwidth = 1, fill = "dodgerblue4") +
+  ggtitle("Distribution of Education Levels") +
+  labs(x = "Education Levels", y = "Count") +
+  theme_minimal()
+```
+We chose a histogram for this visualization because, again, we just wanted to 
+see the distribution of the different education levels within the data.
+
+```{r}
+# df %>% group_by(`QTY_DEFAULT`) %>% summarise(pop_count = mean(`AGE`))
+zero_count <- count(df, QTY_DEFAULT)[[1,2]]
+zero_default_education <- df %>% filter(QTY_DEFAULT == 0) %>% count(EDUCATION)
+zero_default_education$EDUCATION <- factor(
+  zero_default_education$EDUCATION, 
+  levels = c(1, 2, 3, 4),
+  labels = c("Graduate", "Undergraduate", "High School", "Other")
+)
+zero_default_education$fraction <- zero_default_education$n / zero_count
+zero_default_education$ymax <- cumsum(zero_default_education$fraction)
+zero_default_education$ymin <- c(0, head(zero_default_education$ymax, n=-1))
+zero_default_education$labelPosition <- (zero_default_education$ymax + zero_default_education$ymin) / 2
+```
+```{r}
+ggplot(zero_default_education) +
+  aes(ymax=ymax, ymin=ymin, xmax=5, xmin=4, fill=EDUCATION) +
+  geom_rect() +
+  geom_label(
+    x = 5.35, 
+    aes(y=labelPosition, label=sprintf("%.1f%%", fraction * 100)), 
+    show.legend = FALSE
+  ) +
+  coord_polar(theta = "y") +
+  xlim(c(3,5)) +
+  ggtitle("Education of people who have never defaulted") +
+  labs(fill = "Education") +
+  theme_void()
+  # theme(legend.position = "none")
+```
+For this visualization, we opted for a donut chart, because we wanted to 
+visualize the proportional breakdown by education of people who've never 
+defaulted, and a donut chart is considered a good choice for displaying 
+proportions.
+
+```{r}
+six_count <- count(df, QTY_DEFAULT)[[7,2]]
+six_default_education <- df %>% filter(QTY_DEFAULT == 6) %>% count(EDUCATION)
+six_default_education$EDUCATION <- factor(
+  six_default_education$EDUCATION,
+  levels = c(1, 2, 3, 4),
+  labels = c("Graduate", "Undergraduate", "High School", "Other")
+)
+six_default_education$fraction <- six_default_education$n / six_count
+six_default_education$ymax <- cumsum(six_default_education$fraction)
+six_default_education$ymin <- c(0, head(six_default_education$ymax, n=-1))
+six_default_education$labelPosition <- (six_default_education$ymax + six_default_education$ymin) / 2
+```
+```{r}
+ggplot(six_default_education) +
+  aes(ymax=ymax, ymin=ymin, xmax=5, xmin=4, fill=EDUCATION) +
+  geom_rect() +
+  geom_label(
+    x = 5.35, 
+    aes(y=labelPosition, label=sprintf("%.1f%%", fraction * 100)), 
+    show.legend = FALSE
+  ) +
+  coord_polar(theta = "y") +
+  xlim(c(3,5)) +
+  ggtitle("Education of people who have defaulted every month") +
+  labs(fill = "Education") +
+  theme_void()
+```
+For this visualization, we opted for a donut chart, because we wanted to 
+visualize the proportional breakdown by education of people who've defaulted 
+every month, and a donut chart is considered a good choice for displaying 
+proportions.
+
+## Research Questions
+
+1. Is there a relationship between income of an individual, and the number 
+of times within the 6-month observation period that they default? (Answering 
+this question would requite a dataset that includes all the columns of the
+current dataset, plus columns for net monthly income)
+
+2. 
 
 # step 8 : Summary and Conclusions
 
+We've found that a sizeable majority of the people surveyed in this dataset 
+didn't default even a single time within the 6-month observation period in
+which the data was collected. 
 
+An undergraduate education was the most common educational level achieved by the
+people in this dataset, followed by graduate school, then high school, and other
+forms of education the least common. This same approximate proportion was also 
+observed in the group of people who never defaulted on their payments. 
 
 
 
