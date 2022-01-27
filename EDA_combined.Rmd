@@ -6,6 +6,8 @@ output:
   pdf_document: default
   html_document:
     df_print: paged
+header-includes:
+  \usepackage{placeins}
 ---
 
 ```{r eval=TRUE, echo=FALSE, include=FALSE}
@@ -109,10 +111,14 @@ ggplot(df) +
   aes(x = `QTY_DEFAULT`) +
   geom_histogram(binwidth = 1, fill = "dodgerblue4") +
   ggtitle("Occurences of Payment Default within a 6-month Period") +
-  labs(x = "Payment Default Occurences", y = "Count") +
+  labs(x = "Payment default occurences", y = "Count") +
   theme_minimal()
 ```
+\FloatBarrier
+
 For this visualization, we opted for a simple histogram because all we wanted to accomplish here was to show the distribution of the number of missed payments within the 6-month observation period. As we can see, the majority of people in our dataset had no payments in default within this period.
+
+\clearpage
 
 ```{r}
 
@@ -131,7 +137,12 @@ ggplot(default_by_education) +
   labs(x = "Education", y = "Mean default Count") +
   theme_minimal()
 ```
+
+\FloatBarrier
+
 For this visualization, we chose to use a bar chart so we could easily see which `Education` group had the highest average number of defaults. It also makes it easy to compare the different groups to each other. As we can see, on average, people with a lower level of education tend to have the highest number of payment defaults. 
+
+\clearpage
 
 ```{r}
 
@@ -162,7 +173,12 @@ ggplot(zero_default_education) +
   theme_void()
   # theme(legend.position = "none")
 ```
+\FloatBarrier
+
+
 For this visualization, we opted for a donut chart because we wanted to visualize the proportional breakdown by education of people who've never defaulted, and a donut chart is considered a good choice for displaying proportions. This graph illustrates that out of all the clients in our data who never defaulted, people with an undergraduate degree form the biggest category followed by individuals with a graduate and high school education.
+
+\clearpage
 
 ```{r}
 no_default  <- df[df$QTY_DEFAULT == 0,]
@@ -188,37 +204,44 @@ ggplot(no_default_education) +
   theme_minimal()
 
 ```
+\FloatBarrier
+
 This bar chart illustrates the percentage of people, by education level, that never defaulted within the 6-month period. In the pie chart, we had a higher percentage of people with undergraduate degrees that never defaulted compared to people with graduate degrees.This could potentially be explained by a higher number of people with graduate degrees in our data. In the above bar chart, the size of the groups (graduate, undergraduate etc) are taken into consideration when calculating the percentages. Thus, this graph illustrates that individuals with a graduate degree tend to have better credit habits than those with a high school education. In fact 69.5% of people who have a graduate degree never defaulted within the 6-month period versus 62.1% for people with a high school education. 
+
+\clearpage
 
 ```{r}
 
-ggplot(df, aes(x = as.factor(QTY_DEFAULT), y = LIMIT_BAL, fill = as.factor(QTY_DEFAULT))) + geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) + labs(x = "Number of months where the account was in default", y = "Amount of Credit Given")  + guides(fill="none") + theme_minimal()
+ggplot(df, aes(x = as.factor(QTY_DEFAULT), y = LIMIT_BAL, fill = as.factor(QTY_DEFAULT))) + geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) + labs(x = "Number of prior months where the account was in default", y = "Credit limit")  + guides(fill="none") + theme_minimal() + ggtitle("Distribution of credit limits according to history of default")
 
 ```
+\FloatBarrier
 Violinplots were chosen in order to illustrate the relationship between the number of months in default and the amount of credit granted to an individual. Our hypothesis was that higher limits of credit were given to those with better credit habits, thus those with a lower number of months in default. Violinplots were favored to boxplots as their area vary according to the number of observations. Looking at the 3rd quartile of each violin, we notice that as the number of months where the account was in default increase from 0 to 4, the amount of credit that was given decreases. This validates our hypothesis.
 
-
+\clearpage
 ```{r}
 df$default <- factor(ifelse(df$`default payment next month` == 0, "no default", "default"))
 df$default <- relevel(df$default, "no default")
 
-ggplot(df, aes(x = QTY_DEFAULT, fill = default)) + geom_bar(position = 'dodge') + theme_classic() + labs(x = "Number of months where the account was in default", y = "Count") + guides(fill=guide_legend(title="Payment next month"))
+ggplot(df, aes(x = QTY_DEFAULT, fill = default)) + geom_bar(position = 'dodge') + theme_classic() + labs(x = "Number of prior months where the account was in default", y = "Count") + guides(fill=guide_legend(title="Payment next month")) + ggtitle("Likelihood of payment default given prior history of default")
 ```
+\FloatBarrier
+
 This bar plot was made in order to explore the following research question: are people who have defaulted more frequently in the past 6 months more likely to default in the following month? We notice that people that never defaulted are a lot more likely to continue paying on time. Furthermore, as the number of months where the account was in default increases, the difference in count between the 2 groups (default vs no default next month) decreases. In fact, for people who defaulted 3 months out of 6, we notice that the probability that they default during the 7-month is approximately 50%. 
+
+\clearpage
 
 ## Research Questions
 
 1. Is there a relationship between the income of an individual, and the number of times within the 6-month observation period that they default? (Answering this question would require a dataset that includes all the columns of the current dataset, plus columns for net monthly income)
 
-2. 
+2. Is there a relationship between the income of an individual, and the credit limit? (Answering this question would require a dataset that includes all the columns of the current dataset, plus columns for net monthly income)
 
-# step 8 : Summary and Conclusions
+# Step 8 : Summary and Conclusions
 
-We've found that a sizable majority of the people surveyed in this dataset didn't default even a single time within the 6-month observation period in which the data was collected. We also noticed that people with higher levels of education were, on average, more likely to never default within this 6-month period. Similarly, we calculated that people with higher levels of education defaulted, on average, a smaller number of times over the course of the 6-month period. Also, we were able to conclude that higher limits of credit were granted to those who generally defaulted less frequently.Finally, we looked at the relationship between the number of months where the account was in default for a 6-month period and the probability of default for the subsequent month (month 7). It was shown that people who defaulted less than 3 times within the 6-month period were more likely to pay on time for the 7th month. On the other hand, people who defaulted 3, 4 or 5 times had a greater chance of defaulting the following month. For people who defaulted 6 times, the trend changed. In fact, those people were more likely to not default during the 7-month. This might be due to possible consequences associated with unpaid loans after a 6-month period. In fact, in Canada when unpaid accounts reach 6-month, the credit card company will remove access to credit and the individual will have a record to his name making it harder to acquire credit in the future^[https://loanscanada.ca/debt/what-happens-if-i-stop-paying-my-credit-card-bill/]. This might also be the case in Taiwan.
+We've found that a sizable majority of the people surveyed in this dataset didn't default even a single time within the 6-month observation period in which the data was collected. We also noticed that people with higher levels of education were, on average, more likely to never default within this 6-month period. Similarly, we calculated that people with higher levels of education defaulted, on average, a smaller number of times over the course of the 6-month period. Also, we were able to conclude that higher limits of credit were granted to those who generally defaulted less frequently.
 
-
-
-An undergraduate education was the most common educational level achieved by the people in this dataset, followed by graduate school, then high school, and other forms of education the least common. This same approximate proportion was also observed in the group of people who never defaulted on their payments. 
+Finally, we looked at the relationship between the number of months where the account was in default for a 6-month period and the probability of default for the subsequent month (month 7). It was shown that people who defaulted less than 3 times within the 6-month period were more likely to pay on time for the 7th month. On the other hand, people who defaulted more than 2 times had a greater chance of defaulting the following month.
 
 
 
