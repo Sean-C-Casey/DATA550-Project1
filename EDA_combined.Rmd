@@ -1,0 +1,231 @@
+---
+title: "Mini Project 1"
+author: 'Justine Filion and Sean Casey'
+date: "January 28 2022"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r eval=TRUE, echo=FALSE, include=FALSE}
+#install.packages("dplyr")
+library(dplyr)
+
+#install.packages("knitr")
+library(knitr)
+
+#install.packages("devtools")
+library(devtools)
+
+#install.packages("DT")
+library(DT)
+
+#install.packages("xtable")
+library(xtable)
+
+library(tidyverse)
+
+# install.packages('caret')
+library(caret)
+
+library(readxl)
+
+library(ggplot2)
+
+# install.packages('arulesCBA')
+library(arulesCBA)
+```
+
+# Step 1 : Describe the Dataset
+
+The data used in the following analysis was provided to us by the Department of Information Management from Chung Hua University and the Department of Civil Engineering from Tamkang University which are both located in Taiwan. It was donated as of January 26th 2016 but refers to data collected from April to September 2005. The purpose of this dataset is to provide insight on the relationship between different explanatory variables and the probability of default. It contains 23 explanatory variables, all of which are integers, as well as a response variable which takes a value of 1 if the client defaulted in the following month and 0 if not. This dataset was made available to us via the UCI Machine Learning Repository which can be accessed through this link : [link](https://archive.ics.uci.edu/ml/machine-learning-databases/00350/). 
+
+# Step 2 : Load the Dataset
+
+```{r}
+df <- read_excel('defaultofcreditcardclients.xls', skip = 1)
+```
+
+# Step 3 : Explore the Dataset
+
+```{r}
+str(df)
+
+summary(df)
+
+sapply(3:5, function(x) table(df[,x])) # Sex, Education, Marriage
+
+```
+
+# Step 4 : Initial Thoughts
+
+* Why are there 0, 5 and 6s for Education if supposed to be from 1 to 4 --> put them in 4 = others ?
+* Why is there 0 for Marital status if supposed to be from 1 to 3 --> put it in 3 = others ?
+* Make column to count the amount of times the client defaulted (evaluate how good/bad of a credit the client has)
+
+# Step 5 : Wrangling
+
+For the `Education` variable, the data description does not mention what 0, 5 and 6 represent. For our analysis, we chose to classify these values as others and so attributed them the value 4. We also thought it would be interesting to add a column that represented the number of months out of the 6 included in the data where the client defaulted. To do this, we calculated the number of months out of the 6 where a payment was delayed (values from 1 to 9 in columns PAY_SEP through PAY_APR). Another column called `REVOLVING_CREDIT` was added. It counts the number of months where a client was offered revolving credit. Finally, we decided to discretize the age variable. We created the following age intervals :  [20, 30), [30, 40), [40, 50), [50, 60), [60, 70), [70, 80) and [80, 90).
+
+```{r}
+# Move everything not in HighSchool, Undergrad, or GradSchool to Other category
+df[df$EDUCATION %in% c(0, 5, 6), "EDUCATION"] <- 4
+
+# Count number of times defaulted on monthly paymnt, and number of times offered
+# revolving credit within the 6-month observation period
+for (i in 1:nrow(df)){
+  default_count <- 0
+  revolving_credit_count <- 0
+  for (j in 7:12){
+    if (df[i, j] > 0) {
+      default_count <- default_count + 1
+    } else if (df[i, j] == 0) {
+      revolving_credit_count <- revolving_credit_count + 1
+    }
+  }
+  df[i, 'QTY_DEFAULT'] <- default_count
+  df[i, 'REVOLVING_CREDIT'] <- revolving_credit_count
+}
+
+# Discretize age by making bins (20s, 30s, etc.)
+df$AGE_BINNED <- cut(df$AGE, breaks = c(20, 30, 40, 50, 60, 70, 80, 90), include.lowest = TRUE)
+```
+
+# Step 6 : Research Questions
+
+1- Do people with a higher education (graduate school, university), on average, default less frequently than people with a lower level of education (high school)?
+
+2- Are the people who are given higher amounts of credit, also people who, on average, default less frequently?
+
+3- What is the frequency of default payments in a 6 month period for the data collected? 
+
+4- Are people who have defaulted more frequently in the past 6 months more likely to default in October (the following month: `default payment next month`)?
+
+# Step 7 : Data Analysis & Visualizations
+
+```{r}
+ggplot(df) +
+  aes(x = `QTY_DEFAULT`) +
+  geom_histogram(binwidth = 1, fill = "dodgerblue4") +
+  ggtitle("Occurences of Payment Default within a 6-month Period") +
+  labs(x = "Payment Default Occurences", y = "Count") +
+  theme_minimal()
+```
+For this visualization, we opted for a simple histogram because all we wanted to accomplish here was to show the distribution of the number of missed payments within the 6-month observation period. As we can see, the majority of people in our dataset had no payments in default within this period.
+
+```{r}
+
+default_by_education  <- df %>% group_by(`EDUCATION`) %>% summarise(mean_default = mean(`QTY_DEFAULT`))
+default_by_education$EDUCATION <- factor(
+  default_by_education$EDUCATION, 
+  levels = c(1, 2, 3, 4),
+  labels = c("Graduate", "Undergraduate", "High School", "Other")
+)
+
+ggplot(default_by_education) +
+  aes(x = reorder(`EDUCATION`, -`mean_default`), y = `mean_default`, fill = `EDUCATION`) +
+  geom_bar(show.legend = FALSE, stat="identity", position="dodge") +
+  geom_text(aes(label=sprintf("%.2f", `mean_default`)), position=position_dodge(width = 0.2), vjust=-0.5) +
+  ggtitle("Mean Number of Payment Defaults by Education Level") +
+  labs(x = "Education", y = "Mean default Count") +
+  theme_minimal()
+```
+For this visualization, we chose to use a bar chart so we could easily see which `Education` group had the highest average number of defaults. It also makes it easy to compare the different groups to each other. As we can see, on average, people with a lower level of education tend to have the highest number of payment defaults. 
+
+```{r}
+
+zero_count <- count(df, QTY_DEFAULT)[[1,2]]
+zero_default_education <- df %>% filter(QTY_DEFAULT == 0) %>% count(EDUCATION)
+zero_default_education$EDUCATION <- factor(
+  zero_default_education$EDUCATION, 
+  levels = c(1, 2, 3, 4),
+  labels = c("Graduate", "Undergraduate", "High School", "Other")
+)
+zero_default_education$fraction <- zero_default_education$n / zero_count
+zero_default_education$ymax <- cumsum(zero_default_education$fraction)
+zero_default_education$ymin <- c(0, head(zero_default_education$ymax, n=-1))
+zero_default_education$labelPosition <- (zero_default_education$ymax + zero_default_education$ymin) / 2
+
+ggplot(zero_default_education) +
+  aes(ymax=ymax, ymin=ymin, xmax=5, xmin=4, fill=EDUCATION) +
+  geom_rect() +
+  geom_label(
+    x = 5.35, 
+    aes(y=labelPosition, label=sprintf("%.1f%%", fraction * 100)), 
+    show.legend = FALSE
+  ) +
+  coord_polar(theta = "y") +
+  xlim(c(3,5)) +
+  ggtitle("Education level of people who have never defaulted") +
+  labs(fill = "Education") +
+  theme_void()
+  # theme(legend.position = "none")
+```
+For this visualization, we opted for a donut chart because we wanted to visualize the proportional breakdown by education of people who've never defaulted, and a donut chart is considered a good choice for displaying proportions. This graph illustrates that out of all the clients in our data with no default, people with an undergraduate degree form the biggest category followed by graduate and highscool.
+
+```{r}
+no_default  <- df[df$QTY_DEFAULT == 0,]
+
+no_default_education <- no_default %>% group_by(`EDUCATION`) %>% summarise(no_default = NROW(`EDUCATION`))
+
+no_default_education <- cbind(no_default_education, table(df$EDUCATION))[-3]
+
+no_default_education['mean'] <- no_default_education$no_default/no_default_education$Freq
+
+no_default_education$EDUCATION <- factor(
+  no_default_education$EDUCATION, 
+  levels = c(1, 2, 3, 4),
+  labels = c("Graduate", "Undergraduate", "High School", "Other")
+)
+
+ggplot(no_default_education) +
+  aes(x = reorder(`EDUCATION`, -`mean`), y = `mean`, fill = `EDUCATION`) +
+  geom_bar(show.legend = FALSE, stat="identity", position="dodge") +
+  geom_text(aes(label=sprintf("%.1f%%", `mean`*100)), position=position_dodge(width = 0.2), vjust=-0.5) +
+  ggtitle("Percentage of people who never defaulted within 6-month period") +
+  labs(x = "Education", y = "Proportion of people with no default") +
+  theme_minimal()
+
+```
+This bar chart illustrates the percentage of people, by education level, that never defaulted within the 6-month period. In the pie chart, we had a higher percentage of people with undergraduate degrees that never defaulted compared to people with graduate degrees.This could potentially be explained by a higher number of people with graduate degrees in our data. In the above bar chart, the size of the groups (graduate, undergraduate etc) are taken into consideration when calculating the percentages. Thus, this graph illustrates that individuals with a graduate degree tend to have better credit habits than those with a high school education. In fact 69.5% of people who have a graduate degree never defaulted within the 6-month period versus 62.1% for people with a high school education. 
+
+```{r}
+
+ggplot(df, aes(x = as.factor(QTY_DEFAULT), y = LIMIT_BAL, fill = as.factor(QTY_DEFAULT))) + geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) + labs(x = "Number of months where the account was in default", y = "Amount of Credit Given")  + guides(fill="none") + theme_minimal()
+
+```
+Violinplots were chosen in order to illustrate the relationship between the number of months in default and the amount of credit granted to an individual. Our hypothesis was that higher limits of credit were given to those with better credit habits, thus those with a lower number of months in default. Violinplots were favored to boxplots as their area vary according to the number of observations. Looking at the 3rd quartile of each violin, we notice that as the number of months where the account was in default increase from 0 to 4, the amount of credit that was given decreases. This validates our hypothesis.
+
+```{r}
+GGally::ggally_cross(df, aes(x = as.factor(QTY_DEFAULT), y = as.factor(`default payment next month`), color = as.factor(`default payment next month`))) + guides(fill="none")+ theme_minimal() + labs(x = "Number of months where the account was in default", y = "Default payment next month")
+```
+
+
+```{r}
+df$default <- ifelse(df$`default payment next month` == 0, "default", "no default")
+
+ggplot(df, aes(x = as.factor(QTY_DEFAULT),fill = default)) + geom_bar(position = 'dodge') + theme_classic() + labs(x = "Number of months where the account was in default", y = "Count") + guides(fill=guide_legend(title="Payment next month"))
+```
+This bar plot was made in order to explore the following research question: are people who have defaulted more frequently in the past 6 months more likely to default in the following month? We notice that people that never defaulted are a lot more likely to continue paying on time. Furthermore, as the number of months where the account was in default increases, the difference in count between the 2 groups (default vs no default next month) decreases. In fact, for people who defaulted 3 months out of 6, we notice that the probability that they default during the 7-month is approximately 50%. 
+
+## Research Questions
+
+1. Is there a relationship between the income of an individual, and the number of times within the 6-month observation period that they default? (Answering this question would require a dataset that includes all the columns of the current dataset, plus columns for net monthly income)
+
+2. 
+
+# step 8 : Summary and Conclusions
+
+We've found that a sizeable majority of the people surveyed in this dataset didn't default even a single time within the 6-month observation period in which the data was collected. 
+
+An undergraduate education was the most common educational level achieved by the people in this dataset, followed by graduate school, then high school, and other forms of education the least common. This same approximate proportion was also observed in the group of people who never defaulted on their payments. 
+
+
+
+
+
+
+
+
+
